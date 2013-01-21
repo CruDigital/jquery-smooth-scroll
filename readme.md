@@ -19,6 +19,7 @@ The following options, shown with their default values, are available for both `
 
         {
           offset: 0,
+		  offsetEl: null,	// this is used to calculate the offset LIVE based on the outer height of this element - useful for elements that change height based on media queries
           direction: 'top', // one of 'top' or 'left'
           scrollTarget: null, // only use if you want to override default behavior
           afterScroll: null,   // function to be called after scrolling occurs. "this" is the triggering element

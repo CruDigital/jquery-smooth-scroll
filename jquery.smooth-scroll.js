@@ -1,7 +1,7 @@
 /*! Smooth Scroll - v1.4.7 - 2012-10-29
 * Copyright (c) 2012 Karl Swedberg; Licensed MIT, GPL */
 
-(function($) {
+;(function($) {
 
     var version = '1.4.7',
     defaults = {
@@ -79,12 +79,12 @@
         },
         firstScrollable: function(dir) {
             var scrl = getScrollable.call(this, {
-                el: 'first', 
+                el: 'first',
                 dir: dir
             });
             return this.pushStack(scrl);
         },
-        
+
         smoothScroll: function(options) {
             options = options || {};
             var opts = $.extend({}, $.fn.smoothScroll.defaults, options),
@@ -102,7 +102,8 @@
                 clickOpts = {},
                 hostMatch = ((location.hostname === link.hostname) || !link.hostname),
                 pathMatch = opts.scrollTarget || ( $.smoothScroll.filterPath(link.pathname) || locationPath ) === locationPath,
-                thisHash = escapeSelector(link.hash);
+                thisHash = escapeSelector(link.hash),
+                $offsetEl = opts.offsetEl != null && opts.offsetEl != undefined ? $(opts.offsetEl) : null;  // this is used to dynamically calculate the offset on each click
 
                 if ( !opts.scrollTarget && (!hostMatch || !pathMatch || !thisHash) ) {
                     include = false;
@@ -124,7 +125,8 @@
 
                     $.extend( clickOpts, opts, {
                         scrollTarget: opts.scrollTarget || thisHash,
-                        link: link
+                        link: link,
+                        offsetEl: $offsetEl
                     });
 
                     $.smoothScroll( clickOpts );
@@ -140,10 +142,10 @@
         scrollerOffset = 0,
         offPos = 'offset',
         scrollDir = 'scrollTop',
-        aniProps = {},
+        aniProps = {delay:0.05},
         aniOpts = {},
-        scrollprops = [];
-
+        scrollprops = [],
+        elementOffset = 0;
 
         if (typeof options === 'number') {
             opts = $.fn.smoothScroll.defaults;
@@ -169,7 +171,15 @@
         } else {
             $scroller = $('html, body').firstScrollable();
         }
-        
+
+
+        // check for the existence of the offset element - which is what is checked for height + scrollTop (or width + scrollLeft) to add to the offset value
+        if(opts.offsetEl) {
+            var sizeDir = opts.direction == 'left' ? 'width' : 'height';
+            var posDir = opts.direction == 'left' ? 'left' : 'top';
+            elementOffset = parseInt(opts.offsetEl.css(posDir)) + opts.offsetEl[sizeDir]();
+        }
+
         // make sure we have tweenlite on the page before attempting to use it
         opts.useTweenLite = opts.useTweenLite && window['TweenLite'] != undefined;
 
@@ -182,32 +192,38 @@
             $(opts.scrollTarget)[offPos]()[opts.direction] ) ||
         0;
 
-        aniProps[scrollDir] = scrollTargetOffset + scrollerOffset + opts.offset;
+        aniProps[scrollDir] = scrollTargetOffset + scrollerOffset + opts.offset - elementOffset;
         speed = opts.speed;
 
         // automatically calculate the speed of the scroll based on distance / coefficient
         if (speed === 'auto') {
 
             // if aniProps[scrollDir] == 0 then we'll use scrollTop() value instead
-            speed = aniProps[scrollDir] || $scroller.scrollTop();
+            var distance = aniProps[scrollDir] || $scroller.scrollTop();
 
-            // divide the speed by the coefficient
-            speed = speed / opts.velocity;
+            var topValue =  scrollTargetOffset;
+
+            // need to check that the value we are scrolling to is not below the absolute bottom of the screen
+            topValue = topValue +  $(opts.scrollTarget).outerHeight() || 0 > $(window).height() ?  $(opts.scrollTarget).scrollTop() || 0 - $(window).height() : topValue;
+
+            var d = $scroller.scrollTop() - topValue;
+            speed = Math.abs(d / opts.velocity);
         }
-        
+
         // make sure the speed is inside the range specified by min and max times
         speed = speed > opts.maxTime ? opts.maxTime : speed < opts.minTime ? opts.minTime : speed;
-        
+
         if(opts.useTweenLite) {
             if ($scroller.length) {
                 aniProps = $.extend(aniProps, {
-                    ease:opts.tweenEaseFunc, 
+                    ease:opts.tweenEaseFunc,
                     onComplete:function() {
                         opts.afterScroll.call(opts.link, opts);
                     }
-                })
-                
-            TweenLite.to($scroller, speed, aniProps);
+                });
+			setTimeout(function(){
+	            TweenLite.to($scroller, speed, aniProps);				
+			}, 40);
         } else {
             opts.afterScroll.call(opts.link, opts);
         }
